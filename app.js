@@ -8,7 +8,7 @@ const
     cookieSession = require('cookie-session'),
     express = require('express'),
     app = express(),
-    QuickBooks = require('../index'),
+    QuickBooks = require('./index'),
     Tokens = require('csrf'),
     csrf = new Tokens(),
     axios = require('axios'),
