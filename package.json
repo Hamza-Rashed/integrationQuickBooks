@@ -21,6 +21,8 @@
     "ejs": "2.5.5",
     "express": "^4.13.3",
     "express-session": "^1.11.3",
+    "intuit-oauth": "^3.0.2",
+    "node-fetch": "^2.6.1",
     "node-quickbooks": "2.0.0",
     "nodemon": "^2.0.7",
     "request": "^2.88.2"
