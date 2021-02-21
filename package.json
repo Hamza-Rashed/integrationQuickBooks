@@ -25,6 +25,7 @@
     "node-fetch": "^2.6.1",
     "node-quickbooks": "2.0.0",
     "nodemon": "^2.0.7",
+    "open": "^7.4.2",
     "request": "^2.88.2"
   }
 }

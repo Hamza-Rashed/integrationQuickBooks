@@ -7,27 +7,18 @@ const
     express = require('express'),
     port = process.env.PORT,
     app = express(),
-    path = require('path'),
     OAuthClient = require('intuit-oauth'),
     bodyParser = require('body-parser'),
-    QuickBooks = require('./index');
+    QuickBooks = require('./index'),
+    openNewTap = require('open');
 
 
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '/public')));
-app.engine('html', require('ejs').renderFile);
-
-app.set('view engine', 'html');
 app.use(bodyParser.json());
-
-const urlencodedParser = bodyParser.urlencoded({ extended: false });
-
-app.get('/' , (req,res)=>{
-  res.render('index.html')
-})
 
 app.listen(port , ()=>{
   console.log('server is running '+port)
+  requestToken();
 })
 
 const config = {
@@ -35,8 +26,7 @@ const config = {
   secret: process.env.SECRET,
   environment: process.env.ENVIROMENT,
   redirectUri: process.env.REDIRECTURI,
-  scope: process.env.SCOPE,
-  url: process.env.URL
+  realmId : process.env.REALMID,
 }
 
 /**
@@ -55,51 +45,57 @@ let oauthClient = null;
 /**
  * Get the AuthorizeUri
  */
-app.get('/requestToken', urlencodedParser, function (req, res) {
+
+function requestToken() {
   oauthClient = new OAuthClient({
     clientId: config.key,
     clientSecret: config.secret,
     environment: config.environment,
     redirectUri: config.redirectUri,
+    companyId : config.realmId
   });
 
   const authUri = oauthClient.authorizeUri({
     scope: [OAuthClient.scopes.Accounting],
     state: 'intuit-test',
   });
-  console.log(authUri)
-  res.send(authUri);
-});
+  openNewTap(authUri , function (err){
+    throw err
+  })
+};
 
 /**
  * Handle the callback to extract the `Auth Code` and exchange them for `Bearer-Tokens`
  */
+
 app.get('/callback', function (req, res) {
   oauthClient
     .createToken(req.url)
     .then(function (authResponse) {
       oauth2_token_json = JSON.stringify(authResponse.getJson(), null, 2);
+      getRefreshToken();
     })
     .catch(function (e) {
       console.error(e);
     });
-console.log(oauth2_token_json)
   res.send('');
+
 });
 
 /**
  * Refresh the access-token
  */
-const getRefreshToken = async () => {
+function getRefreshToken() {
+  
   oauthClient
     .refresh()
     .then(function (authResponse) {
-      console.log(`The Refresh Token is  ${JSON.stringify(authResponse.getJson())}`);
       oauth2_token_json = JSON.stringify(authResponse.getJson(), null, 2);
     })
-    return oauth2_token_json;
-};
-
+    let accessToken = JSON.parse(oauth2_token_json)
+   console.log('Done Create New Token And Refresh For it' , accessToken)
+   return accessToken;
+}
 
 /**
  * 
@@ -136,14 +132,15 @@ const getRefreshToken = async () => {
   "time": "2015-07-13T12:50:36.72-07:00"
 }
  */
+
 const get_account = async (account_id) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
   access_token.getAccount(account_id, (err, account_details) => {
     if (err) throw err
-    else return account_details;
+    else return account_details
   })
 }
-
 /**
  * 
  * @param Name  {max character: max 100 characters .... and ... User recognizable name for the Account. Account.Name attribute must not contain double quotes (") or colon (:).} 
@@ -189,7 +186,8 @@ Required if AccountType is not specified.}
 }
  */
 const create_account = async (Name, AcctNum, TaxCodeRef, AccountType, AccountSubType) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
   let info = {
     Name: Name,
     AcctNum: AcctNum,
@@ -246,7 +244,8 @@ US, UK & IN: 7 characters}
 *
  */
 const update_account = async (account_id, Name, SyncToken, AcctNum) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
   let info = {
     Name: Name,
     AcctNum: AcctNum,
@@ -327,7 +326,8 @@ const update_account = async (account_id, Name, SyncToken, AcctNum) => {
 }
  */
 const get_bill = async (bill_id) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
   access_token.getBill(bill_id, (err, bill_details) => {
     if (err) throw err
     else return bill_details;
@@ -387,7 +387,8 @@ Multicurrency is enabled for the company if Preferences.MultiCurrencyEnabled is 
 }
 */
 const create_bill = async (VendorRef, Line, CurrencyRef) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
   let info = {
     VendorRef: VendorRef,
     Line: Line,
@@ -474,7 +475,8 @@ const create_bill = async (VendorRef, Line, CurrencyRef) => {
 }
  */
 const update_bill = async (bill_id, VendorRef, Line, SyncToken, CurrencyRef) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
 
   let info = {
     bill_id: bill_id,
@@ -538,7 +540,8 @@ const update_bill = async (bill_id, VendorRef, Line, SyncToken, CurrencyRef) => 
 }
  */
 const get_customer = async (customer_id) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
 
   access_token.getCustomer(customer_id, (err, customer_details) => {
     if (err) throw err
@@ -610,7 +613,8 @@ const get_customer = async (customer_id) => {
 }
  */
 const create_customer = async (DisplayName, Suffix, Title, MiddleName, FamilyName, GivenName) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
   let info = {
     DisplayName: DisplayName,
     Suffix: Suffix,
@@ -683,7 +687,8 @@ const create_customer = async (DisplayName, Suffix, Title, MiddleName, FamilyNam
 }
  */
 const update_customer = async (customer_id, SyncToken, DisplayName, Suffix, Title, MiddleName, FamilyName, GivenName) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
 
   let info = {
     customer_id: customer_id,
@@ -799,7 +804,8 @@ const update_customer = async (customer_id, SyncToken, DisplayName, Suffix, Titl
 }
  */
 const get_order = async (order_id) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
 
   access_token.getPurchaseOrder(order_id, (err, order_details) => {
     if (err) throw err
@@ -908,7 +914,8 @@ Multicurrency is enabled for the company if Preferences.MultiCurrencyEnabled is 
 }
  */
 const create_order = async (Line, CustomerRef, CurrencyRef) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
   let info = {
     Line: Line,
     CustomerRef: CustomerRef,
@@ -1053,7 +1060,8 @@ const create_order = async (Line, CustomerRef, CurrencyRef) => {
 }
  */
 const update_order = async (order_id, CustomerRef, SyncToken, CurrencyRef, BillEmail) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
   let info = {
     order_id: order_id,
     CustomerRef: CustomerRef,
@@ -1083,7 +1091,8 @@ const update_order = async (order_id, CustomerRef, SyncToken, CurrencyRef, BillE
 }
  */
 const delete_order = async (order_id) => {
-  let access_token = await authenticate( /** needed data => getRefreshToken Function */);
+  let TokenInfo = getRefreshToken()
+  let access_token = await authenticate(TokenInfo);
 
   access_token.deletePurchaseOrder(order_id, (err, order_details) => {
     if (err) throw err
